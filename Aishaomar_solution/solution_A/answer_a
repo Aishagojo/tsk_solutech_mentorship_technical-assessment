@@ -1,0 +1,73 @@
+section A
+1) Three pieces of data to store for each book
+-book_id(unique per copy)
+-title & author
+-availability(available / borrowed)
+
+2) How to prevent the same book from being borrowed twice:
+-on borrow,check availability
+-if borrowed -> rejecte
+-if available ->created a loan record and mark as borrowed
+-keep only one active (unreturned) loan per book
+
+
+3) Scaling to 10,000 books and 1,000 users — what needs to change:
+-use a database  with indexes(book_id, user_id)
+-Paginate lists and optionally cache "available book"
+-Add user account (auth) and simple rate limiting
+-Host on cloud with basic monitoring 
+
+4) Store book info and borrowing record together or separately — why?
+-Book data is mostly static
+-Loan are time-based and change often
+-Easier history,reports, and faster queries
+
+
+------
+
+
+
+1:Tables: 
+  - **Books** → `book_id`, `title`, `author`, `availability` (`available`/`borrowed`)  
+  - **Users** → `user_id`, `name`  
+  - **Loans** → `loan_id`, `book_id`, `user_id`, `borrowed_at`, `due_at`, `returned_at`  
+
+- 2:Rule: 
+  - Only **one active loan per book** → “active” means `returned_at` is **NULL**.
+
+- 3:Flow:
+  1) **Borrow:** Check `availability`; if available → create **Loans** record + set book to `borrowed`.  
+  2) **Return:** Set `returned_at` → set book to `available`.
+
+Mini System Diagram
+----
+
+          ┌───────────────┐
+          │     User      │
+          └───────┬───────┘
+                  │
+                  ▼
+         ┌──────────────────┐
+         │   Frontend App    │
+         └───────┬───────────┘
+                  │ Request: borrow / return
+                  ▼
+         ┌──────────────────┐
+         │   Backend API     │
+         └───────┬───────────┘
+                  │
+     ┌────────────┼────────────────┐
+     │            │                │
+     ▼            ▼                ▼
+┌───────────┐┌──────────┐   ┌──────────────┐
+│  Books    ││  Users   │   │    Loans     │
+│-----------││----------│   │--------------│
+│ book_id   ││ user_id  │   │ loan_id       │
+│ title     ││ name     │   │ book_id       │
+│ author    │           │   │ user_id       │
+│ avail.    │           │   │ borrowed_at   │
+└───────────┘└──────────┘   │ due_at        │
+                            │ returned_at   │
+                            └──────────────┘
+
+
